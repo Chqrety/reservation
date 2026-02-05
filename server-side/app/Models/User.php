@@ -14,7 +14,7 @@ class User extends Authenticatable implements JWTSubject
     /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasFactory, Notifiable;
 
-
+    
     protected $fillable = [
         'name',
         'email',
@@ -29,7 +29,6 @@ class User extends Authenticatable implements JWTSubject
      */
     protected $hidden = [
         'password',
-        'remember_token',
     ];
 
     /**
@@ -39,18 +38,17 @@ class User extends Authenticatable implements JWTSubject
      */
     protected function casts(): array
     {
-        return [
+        return [            
             'password' => 'hashed',
         ];
     }
 
     // relation between users and reservation
-    public function reservations()
-    {
+    public function reservations(){
         return $this->hasMany(Reservation::class);
     }
 
-    // identifier that will be store in the jwt token
+        // identifier that will be store in the jwt token
     public function getJWTIdentifier()
     {
         return $this->getKey();

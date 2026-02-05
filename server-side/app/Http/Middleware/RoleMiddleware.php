@@ -15,6 +15,7 @@ class RoleMiddleware
      */
     public function handle(Request $request, Closure $next, string ...$roles): Response
     {
+        // cek apakah user sudah login atau belum
         $user = auth()->guard('api')->user();
           if (!$user) {
             return response()->json([

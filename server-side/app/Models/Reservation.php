@@ -17,6 +17,8 @@ class Reservation extends Model
       'phone_number',
       'reservation_date',
       'note',
+      'order_number',
+      'user_id',
     ];
 
     // relation between reservation and user

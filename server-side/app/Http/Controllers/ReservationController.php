@@ -4,14 +4,17 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\Reservation;
-use Illuminate\Container\Attributes\Auth;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Auth;
+
 
 
 class ReservationController extends Controller
 {
     // create reservation 
     public function store(Request $request){
+      
+      // validasi input/request dari user
       $validated = $request->validate([
         'customer_name' => 'required|string|min:3|max:100',
         'address' => 'required|string|min:10',
@@ -21,6 +24,7 @@ class ReservationController extends Controller
         'note' => 'nullable|string',
       ]);
 
+      // simpan data ke database 
       $reservation = Reservation::create([
         'customer_name' => $validated['customer_name'],
         'address' => $validated['address'],
@@ -88,7 +92,7 @@ class ReservationController extends Controller
 
     public function check(Request $request){
         $validated = $request->validate([
-            'order_number' => 'required|string|size:8',
+            'order_number' => 'required|string|min:8|max:20',
             'phone_number' => 'required|string|max:15',
         ]);
     

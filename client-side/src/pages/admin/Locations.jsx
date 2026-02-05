@@ -10,7 +10,7 @@ export default function Locations() {
   const [isEdit, setIsEdit] = useState(false)
   const [idLocation, setIdLocation] = useState(null)
 
-  const [title, setTitle] = useState('')
+  const [name, setName] = useState('')
   const [categoryId, setCategoryId] = useState('')
   const [description, setDescription] = useState('')
   const [address, setAddress] = useState('')
@@ -25,32 +25,61 @@ export default function Locations() {
   const fetchData = async () => {
     setIsLoading(true)
     try {
-      const params = `?search=${search}&category_id=${filterCategory}`
-      const response = await Api.get(`/locations${params}`)
+      const params = new URLSearchParams()
+
+      // HAPUS BARIS INI: params.append('search', search);
+      // (Kita filter sendiri di FE, jangan suruh backend)
+
+      // Kategori tetap dikirim ke BE karena filternya sudah benar
+      if (filterCategory) {
+        params.append('category_id', filterCategory)
+      }
+
+      const response = await Api.get(`/location/filter/check?${params.toString()}`)
+
       if (response.data && response.data.success) {
         setLocations(response.data.data)
       }
     } catch (error) {
       console.error(error)
+      setMessage({ type: 'error', text: 'Gagal mengambil data lokasi.' })
     }
     setIsLoading(false)
   }
 
   const fetchCategories = async () => {
     try {
-      const response = await Api.get('/location-categories')
+      // URL sesuai backend (jamak di depan)
+      const response = await Api.get('/locations-categories')
+
       if (response.data && response.data.success) {
-        setCategories(response.data.data)
+        // --- PERBAIKAN DI SINI ---
+        // SEBELUMNYA: setLocations(response.data.data); (SALAH)
+        setCategories(response.data.data) // (BENAR: Simpan ke state categories)
+      } else if (Array.isArray(response.data)) {
+        setCategories(response.data)
       }
     } catch (error) {
-      console.error(error)
+      console.error('Gagal load kategori', error)
     }
   }
+
+  const filteredLocations = locations.filter((item) => {
+    if (!search) return true // Kalau search kosong, tampilkan semua
+
+    const lowerSearch = search.toLowerCase()
+
+    return (
+      (item.name && item.name.toLowerCase().includes(lowerSearch)) ||
+      (item.address && item.address.toLowerCase().includes(lowerSearch)) ||
+      (item.description && item.description.toLowerCase().includes(lowerSearch))
+    )
+  })
 
   useEffect(() => {
     fetchData()
     fetchCategories()
-  }, [search, filterCategory])
+  }, [filterCategory])
 
   const handleFileChange = (e) => {
     const file = e.target.files[0]
@@ -61,7 +90,7 @@ export default function Locations() {
   const openAddModal = () => {
     setIsEdit(false)
     setIdLocation(null)
-    setTitle('')
+    setName('')
     setCategoryId('')
     setDescription('')
     setAddress('')
@@ -74,7 +103,7 @@ export default function Locations() {
   const openEditModal = (item) => {
     setIsEdit(true)
     setIdLocation(item.id)
-    setTitle(item.title)
+    setName(item.name)
     setCategoryId(item.category_id)
     setDescription(item.description)
     setAddress(item.address)
@@ -86,17 +115,26 @@ export default function Locations() {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+    setValidation({}) // Reset error validasi sebelumnya
+
     const formData = new FormData()
-    formData.append('title', title)
+    formData.append('name', name)
     formData.append('category_id', categoryId)
     formData.append('description', description)
     formData.append('address', address)
-    if (image) formData.append('image', image)
 
-    if (isEdit) formData.append('_method', 'PUT')
+    // Hanya kirim image jika ada file baru yang dipilih
+    if (image instanceof File) {
+      formData.append('image', image)
+    }
+
+    // Method Spoofing untuk update
+    if (isEdit) {
+      formData.append('_method', 'PUT')
+    }
 
     try {
-      const url = isEdit ? `/locations/${idLocation}` : '/locations'
+      const url = isEdit ? `/location/${idLocation}` : '/location'
       await Api.post(url, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       })
@@ -107,6 +145,10 @@ export default function Locations() {
     } catch (error) {
       if (error.response && error.response.status === 422) {
         setValidation(error.response.data.errors)
+        // Log ini untuk melihat field mana yang sebenarnya error menurut Laravel
+        console.log('Detail Error Validasi:', error.response.data.errors)
+      } else {
+        setMessage({ type: 'error', text: 'Terjadi kesalahan pada server.' })
       }
     }
   }
@@ -114,13 +156,15 @@ export default function Locations() {
   const handleDelete = async (id) => {
     if (!window.confirm('Hapus lokasi ini?')) return
     try {
-      await Api.delete(`/locations/${id}`)
+      await Api.delete(`/location/${id}`)
       setMessage({ type: 'success', text: 'Data berhasil dihapus!' })
       fetchData()
     } catch (error) {
       console.error(error)
     }
   }
+
+  console.log(locations)
 
   return (
     <div className="p-4">
@@ -166,7 +210,7 @@ export default function Locations() {
           <thead className="bg-gray-100">
             <tr>
               <th className="p-3 text-left">Thumbnail</th>
-              <th className="p-3 text-left">Judul</th>
+              <th className="p-3 text-left">Nama</th>
               <th className="p-3 text-left">Kategori</th>
               <th className="p-3 text-center">Aksi</th>
             </tr>
@@ -178,24 +222,41 @@ export default function Locations() {
                   Loading...
                 </td>
               </tr>
-            ) : (
-              locations.map((item) => (
+            ) : filteredLocations.length > 0 ? (
+              filteredLocations.map((item) => (
                 <tr key={item.id} className="border-b">
                   <td className="p-3">
-                    <img src={item.image} alt="" className="w-20 h-12 object-cover rounded" />
+                    <img
+                      src={item.image}
+                      alt={item.name}
+                      className="w-20 h-12 object-cover rounded"
+                      onError={(e) => {
+                        e.target.onerror = null
+                        e.target.src = 'https://placehold.co/400?text=No+Image'
+                      }}
+                    />
                   </td>
-                  <td className="p-3 font-medium">{item.title}</td>
-                  <td className="p-3">{item.category?.name}</td>
+                  <td className="p-3 font-medium">{item.name}</td>
+                  <td className="p-3">
+                    <div className="text-sm font-semibold">{item.category?.name}</div>
+                    <div className="text-xs text-gray-500">{item.address}</div>
+                  </td>
                   <td className="p-3 text-center">
-                    <button onClick={() => openEditModal(item)} className="text-blue-600 mr-3">
+                    <button onClick={() => openEditModal(item)} className="text-blue-600 mr-3 hover:underline">
                       Edit
                     </button>
-                    <button onClick={() => handleDelete(item.id)} className="text-red-600">
+                    <button onClick={() => handleDelete(item.id)} className="text-red-600 hover:underline">
                       Hapus
                     </button>
                   </td>
                 </tr>
               ))
+            ) : (
+              <tr>
+                <td colSpan="4" className="text-center p-5 text-gray-500">
+                  Data tidak ditemukan.
+                </td>
+              </tr>
             )}
           </tbody>
         </table>
@@ -208,14 +269,14 @@ export default function Locations() {
             <form onSubmit={handleSubmit}>
               <div className="grid grid-cols-2 gap-4">
                 <div className="mb-4">
-                  <label className="block mb-1 font-bold">Judul</label>
+                  <label className="block mb-1 font-bold">Nama</label>
                   <input
                     type="text"
                     className="w-full border p-2 rounded"
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
                   />
-                  {validation.title && <small className="text-red-500">{validation.title[0]}</small>}
+                  {validation.name && <small className="text-red-500">{validation.name[0]}</small>}
                 </div>
                 <div className="mb-4">
                   <label className="block mb-1 font-bold">Kategori</label>

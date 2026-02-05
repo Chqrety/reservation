@@ -36,7 +36,7 @@ export default function Login() {
       localStorage.setItem('token', token)
       localStorage.setItem('user', JSON.stringify(user))
 
-      navigate('/admin/categories')
+      navigate('/admin')
     } catch (error) {
       if (error.response) {
         if (error.response.status === 422) {

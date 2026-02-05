@@ -16,9 +16,12 @@ export default function Categories() {
   const fetchData = async () => {
     setIsLoading(true)
     try {
-      const response = await Api.get('/location-categories')
+      // Tambahkan 's' menjadi /locations-categories
+      const response = await Api.get('/locations-categories')
       if (response.data && response.data.success) {
         setCategories(response.data.data)
+      } else if (Array.isArray(response.data)) {
+        setCategories(response.data)
       }
     } catch (error) {
       console.error(error)
@@ -54,10 +57,10 @@ export default function Categories() {
 
     try {
       if (isEdit) {
-        await Api.put(`/location-categories/${idCategory}`, { name })
+        await Api.put(`/locations-categories/${idCategory}`, { name })
         setMessage({ type: 'success', text: 'Kategori berhasil diperbarui!' })
       } else {
-        await Api.post('/location-categories', { name })
+        await Api.post('/locations-categories', { name })
         setMessage({ type: 'success', text: 'Kategori berhasil ditambahkan!' })
       }
 
@@ -74,9 +77,9 @@ export default function Categories() {
 
   const handleDelete = async (id) => {
     if (!window.confirm('Apakah Anda yakin ingin menghapus kategori ini?')) return
-
     try {
-      await Api.delete(`/location-categories/${id}`)
+      // Tambahkan 's' menjadi /locations-categories
+      await Api.delete(`/locations-categories/${id}`)
       setMessage({ type: 'success', text: 'Kategori berhasil dihapus!' })
       fetchData()
     } catch (error) {

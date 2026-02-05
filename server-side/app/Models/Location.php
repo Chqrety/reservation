@@ -15,6 +15,7 @@ class Location extends Model
       'address',
       'image',
       'category_id',
+      'description',
     ];
 
     // relation between location and reservation

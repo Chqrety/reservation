@@ -33,6 +33,7 @@ class LocationController extends Controller
 
     }
 
+    // get all locations 
     public function index(Request $request){
       // pagination 
       $perPage = $request->input('per_page', 10);
@@ -54,6 +55,7 @@ class LocationController extends Controller
       ], 200);
     }
 
+    // get location by id
     public function show($id){
       
       // get location by id
@@ -68,6 +70,7 @@ class LocationController extends Controller
     }
 
     public function filler(Request $request){
+      
       $query = Location::with('category');
 
       if ($request->has('category_id')) {
@@ -75,9 +78,9 @@ class LocationController extends Controller
       }
 
       if ($request->filled('search')) {
-        $query->where('name', 'like', '%' . $request->search . '%');
+        $query->where('address', 'LIKE', '%' . trim($request->search) . '%');
       }
-
+      
       $locations = $query->get();
 
       return response()->json([

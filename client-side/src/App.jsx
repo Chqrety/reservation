@@ -8,6 +8,7 @@ import LandingPage from './pages/public/LandingPage'
 import Dashboard from './pages/admin/Dashboard'
 import Categories from './pages/admin/Categories'
 import Locations from './pages/admin/Locations'
+import Reservations from './pages/admin/Reservations'
 
 function App() {
   return (
@@ -23,6 +24,7 @@ function App() {
           <Route index element={<Dashboard />} />
           <Route path="categories" element={<Categories />} />
           <Route path="locations" element={<Locations />} />
+          <Route path="reservations" element={<Reservations />} />
         </Route>
       </Routes>
     </BrowserRouter>

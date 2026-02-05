@@ -16,7 +16,7 @@ return new class extends Migration
             $table->string('name', 100);
             $table->text('address');
             $table->text('description');
-            $table->text('image');
+            $table->text('image')->nullable();
             $table->foreignId('category_id')
                 ->constrained('location_categories')
                 ->cascadeOnDelete();
