@@ -10,6 +10,7 @@ export default function OrderForm() {
   const [phoneNumber, setPhoneNumber] = useState('')
   const [address, setAddress] = useState('')
   const [reservationDate, setReservationDate] = useState('')
+  const [note, setNote] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [validation, setValidation] = useState({})
   const [message, setMessage] = useState(null)
@@ -44,8 +45,11 @@ export default function OrderForm() {
       phone_number: phoneNumber,
       address: address,
       date: reservationDate,
-      user_id: 1,
+      note: note,
     }
+
+    // DEBUG: Cek apa yang dikirim ke server
+    console.log('Payload dikirim:', payload)
 
     try {
       const response = await Api.post('/reservations/store', payload)
@@ -55,20 +59,51 @@ export default function OrderForm() {
           type: 'success',
           text: `Berhasil! Order ID Anda: ${response.data.data.order_number}`,
         })
-
         setCustomerName('')
         setPhoneNumber('')
         setReservationDate('')
+        setNote('')
       }
     } catch (error) {
+      // 1. Tangani Error Validasi (422)
       if (error.response && error.response.status === 422) {
         setValidation(error.response.data.errors)
-        console.error('Validasi Gagal:', error.response.data.errors)
-      } else {
-        console.error('Server Error:', error)
+        console.warn('Validasi Gagal (422):', error.response.data.errors)
+      }
+
+      // 2. Tangani Error Server (500) - DEBUG MODE
+      else if (error.response && error.response.status === 500) {
+        const dbError = error.response.data
+        console.error('SERVER CRASH (500):', dbError)
+
+        // Kita tampilkan pesan debug yang dikirim Backend tadi ke layar
         setMessage({
           type: 'error',
-          text: 'Terjadi kesalahan sistem (500).',
+          text: (
+            <div className="text-left">
+              <p className="font-bold">Terjadi kesalahan sistem (500)</p>
+              <div className="mt-2 text-[10px] bg-black bg-opacity-10 p-2 rounded">
+                <p>
+                  <strong>Message:</strong> {dbError.debug_error || 'Internal Server Error'}
+                </p>
+                <p>
+                  <strong>File:</strong> {dbError.file || 'Unknown'}
+                </p>
+                <p>
+                  <strong>Line:</strong> {dbError.line || 'Unknown'}
+                </p>
+              </div>
+            </div>
+          ),
+        })
+      }
+
+      // 3. Tangani Error Koneksi/Lainnya
+      else {
+        console.error('Request Error:', error.message)
+        setMessage({
+          type: 'error',
+          text: 'Tidak dapat terhubung ke server. Periksa koneksi atau CORS.',
         })
       }
     }
@@ -160,6 +195,19 @@ export default function OrderForm() {
                 placeholder="Detail alamat..."
               ></textarea>
               {validation.address && <small className="text-red-600 text-xs mt-1 block">{validation.address[0]}</small>}
+            </div>
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-1">
+                Catatan Tambahan <span className="text-gray-400 font-normal text-xs">(Opsional)</span>
+              </label>
+              <textarea
+                rows="3"
+                className={`w-full border p-3 rounded-lg outline-none transition-all ${validation.note ? 'border-red-500 bg-red-50' : 'border-gray-300 focus:ring-2 focus:ring-blue-500'}`}
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                placeholder="Misal: Request dekorasi tambahan..."
+              ></textarea>
+              {validation.note && <small className="text-red-600 text-xs mt-1 block">{validation.note[0]}</small>}
             </div>
 
             <button

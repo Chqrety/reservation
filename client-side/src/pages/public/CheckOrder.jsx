@@ -2,36 +2,43 @@ import React, { useState } from 'react'
 import Api from '../../api'
 
 export default function CheckOrder() {
-  // State Input Pencarian
   const [orderNumber, setOrderNumber] = useState('')
   const [phoneNumber, setPhoneNumber] = useState('')
-
-  // State Data & UI
   const [orderDetail, setOrderDetail] = useState(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState(null)
 
-  // Fungsi Handle Pencarian Pesanan
   const handleCheckOrder = async (e) => {
     e.preventDefault()
     setIsLoading(true)
     setError(null)
     setOrderDetail(null)
 
-    try {
-      // Mengirim data ke API check reservation
-      const response = await Api.post('/reservations/check', {
-        order_number: orderNumber,
-        phone_number: phoneNumber,
-      })
+    // Sanitasi input: hapus spasi di depan/belakang
+    const payload = {
+      order_number: orderNumber.trim(),
+      phone_number: String(phoneNumber).trim(), // Pastikan dikirim sebagai string
+    }
 
-      if (response.data && response.data.success) {
+    try {
+      const response = await Api.post('/reservations/check', payload)
+
+      // DEBUG: Lihat apa isi response dari server di console
+      console.log('Response Check Order:', response.data)
+
+      if (response.data) {
         setOrderDetail(response.data.data)
       } else {
-        setError('Data pemesanan tidak ditemukan. Pastikan nomor order dan HP benar.')
+        setError('Data pemesanan tidak ditemukan. Cek kembali Nomor Order dan nomor WhatsApp Anda.')
       }
     } catch (err) {
-      setError('Terjadi kesalahan saat mencari data. Silakan coba lagi.')
+      console.error('Error Detail:', err.response?.data)
+
+      if (err.response && err.response.status === 404) {
+        setError('Pemesanan tidak ditemukan di database kami.')
+      } else {
+        setError('Terjadi kesalahan koneksi ke server. Silakan coba lagi nanti.')
+      }
     }
     setIsLoading(false)
   }
@@ -39,13 +46,11 @@ export default function CheckOrder() {
   return (
     <div className="min-h-screen bg-gray-50 py-12 px-4">
       <div className="max-w-2xl mx-auto">
-        {/* Header Section */}
         <div className="text-center mb-8">
           <h2 className="text-3xl font-bold text-gray-800">Cek Status Pemesanan</h2>
-          <p className="text-gray-500 mt-2">Masukkan detail pesanan Anda untuk melihat status terbaru</p>
+          <p className="text-gray-500 mt-2">Gunakan Nomor Order Anda untuk melihat rincian reservasi</p>
         </div>
 
-        {/* Form Pencarian */}
         <div className="bg-white p-6 rounded-2xl shadow-sm border mb-8">
           <form onSubmit={handleCheckOrder} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -53,8 +58,8 @@ export default function CheckOrder() {
                 <label className="block text-sm font-bold text-gray-700 mb-1">Nomor Order</label>
                 <input
                   type="text"
-                  className="w-full border p-3 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-                  placeholder="Contoh: ORD-12345"
+                  className="w-full border p-3 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none uppercase placeholder:normal-case"
+                  placeholder="Contoh: ORD-XXXXXXXX"
                   value={orderNumber}
                   onChange={(e) => setOrderNumber(e.target.value)}
                   required
@@ -63,7 +68,7 @@ export default function CheckOrder() {
               <div>
                 <label className="block text-sm font-bold text-gray-700 mb-1">Nomor WhatsApp</label>
                 <input
-                  type="number"
+                  type="text" // Diubah ke text agar string sanitasi lebih mudah
                   className="w-full border p-3 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                   placeholder="08123456789"
                   value={phoneNumber}
@@ -75,51 +80,59 @@ export default function CheckOrder() {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition-all disabled:bg-gray-400"
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl transition-all shadow-lg shadow-blue-100 disabled:bg-gray-400"
             >
-              {isLoading ? 'Mencari...' : 'LIHAT DETAIL PESANAN'}
+              {isLoading ? 'Mencari Data...' : 'CARI PESANAN'}
             </button>
           </form>
-          {error && <p className="mt-4 text-center text-red-500 text-sm font-medium">{error}</p>}
+          {error && (
+            <div className="mt-4 p-3 bg-red-50 text-red-600 rounded-lg text-sm text-center font-medium border border-red-100">
+              {error}
+            </div>
+          )}
         </div>
 
-        {/* Tampilan Detail Pesanan (Muncul jika ditemukan) */}
         {orderDetail && (
-          <div className="bg-white rounded-2xl shadow-lg border-t-8 border-blue-600 overflow-hidden animate-fade-in">
-            <div className="p-6">
-              <div className="flex justify-between items-start mb-6">
-                <div>
-                  <h3 className="text-lg font-bold text-gray-800">Detail Reservasi</h3>
-                  <p className="text-2xl font-black text-blue-600">{orderDetail.order_number}</p>
+          <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden animate-in fade-in zoom-in duration-300">
+            <div className="bg-blue-600 p-6 text-white text-center">
+              <p className="text-blue-100 text-sm font-bold uppercase tracking-widest mb-1">Status Reservasi</p>
+              <h3 className="text-3xl font-black">{orderDetail.order_number}</h3>
+            </div>
+
+            <div className="p-8">
+              <div className="space-y-6">
+                <div className="flex justify-between items-center pb-4 border-b border-gray-50">
+                  <span className="text-gray-400 text-sm">Nama Pelanggan</span>
+                  <span className="font-bold text-gray-800 text-right">{orderDetail.customer_name}</span>
                 </div>
-                <span className="bg-green-100 text-green-700 text-xs font-bold px-3 py-1 rounded-full uppercase">
-                  Terkonfirmasi
-                </span>
+                <div className="flex justify-between items-center pb-4 border-b border-gray-50">
+                  <span className="text-gray-400 text-sm">Gedung / Lokasi</span>
+                  <span className="font-bold text-blue-600 text-right">
+                    {orderDetail.location?.name || 'Data Lokasi Hilang'}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center pb-4 border-b border-gray-50">
+                  <span className="text-gray-400 text-sm">Tanggal Pelaksanaan</span>
+                  <span className="font-bold text-gray-800 text-right">{orderDetail.reservation_date}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-400 text-sm">Nomor WhatsApp</span>
+                  <span className="font-bold text-gray-800 text-right">{orderDetail.phone_number}</span>
+                </div>
+
+                {orderDetail.note && (
+                  <div className="mt-6 p-4 bg-yellow-50 rounded-xl border border-yellow-100">
+                    <span className="text-[10px] font-black text-yellow-600 uppercase block mb-1">
+                      Catatan Tambahan:
+                    </span>
+                    <p className="text-gray-700 text-sm italic">"{orderDetail.note}"</p>
+                  </div>
+                )}
               </div>
 
-              <div className="space-y-4 border-t pt-4">
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Nama Pelanggan</span>
-                  <span className="font-semibold text-gray-800">{orderDetail.customer_name}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Gedung / Lokasi</span>
-                  <span className="font-semibold text-gray-800">{orderDetail.location?.name}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Tanggal Sewa</span>
-                  <span className="font-semibold text-gray-800">{orderDetail.reservation_date}</span>
-                </div>
-                <div className="flex justify-between border-t pt-4 mt-4">
-                  <span className="text-gray-500">Nomor Telepon</span>
-                  <span className="font-semibold text-gray-800">{orderDetail.phone_number}</span>
-                </div>
+              <div className="mt-10 pt-6 border-t border-dashed text-center">
+                <p className="text-xs text-gray-400">Simpan halaman ini sebagai bukti reservasi yang sah.</p>
               </div>
-            </div>
-            <div className="bg-gray-50 p-4 text-center">
-              <p className="text-xs text-gray-400 italic">
-                Harap tunjukkan halaman ini kepada petugas saat hari pelaksanaan.
-              </p>
             </div>
           </div>
         )}
