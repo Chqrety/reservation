@@ -29,12 +29,8 @@ Api.interceptors.response.use(
   },
   (error) => {
     // Jika Server mengirim status 401 (Unauthorized)
-    if (error.response && error.response.status === 401) {
-      // Hapus data sesi di browser
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-
-      // Lempar kembali ke halaman login
+    if (error.response?.status === 401) {
+      localStorage.clear(); // Lebih bersih untuk menghapus semua sesi
       window.location.href = '/login';
     }
     return Promise.reject(error);

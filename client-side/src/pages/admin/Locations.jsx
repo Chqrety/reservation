@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import Api from '../../api'
 
 export default function Locations() {
@@ -27,10 +27,6 @@ export default function Locations() {
     try {
       const params = new URLSearchParams()
 
-      // HAPUS BARIS INI: params.append('search', search);
-      // (Kita filter sendiri di FE, jangan suruh backend)
-
-      // Kategori tetap dikirim ke BE karena filternya sudah benar
       if (filterCategory) {
         params.append('category_id', filterCategory)
       }
@@ -49,13 +45,10 @@ export default function Locations() {
 
   const fetchCategories = async () => {
     try {
-      // URL sesuai backend (jamak di depan)
       const response = await Api.get('/locations-categories')
 
       if (response.data && response.data.success) {
-        // --- PERBAIKAN DI SINI ---
-        // SEBELUMNYA: setLocations(response.data.data); (SALAH)
-        setCategories(response.data.data) // (BENAR: Simpan ke state categories)
+        setCategories(response.data.data)
       } else if (Array.isArray(response.data)) {
         setCategories(response.data)
       }
@@ -65,7 +58,7 @@ export default function Locations() {
   }
 
   const filteredLocations = locations.filter((item) => {
-    if (!search) return true // Kalau search kosong, tampilkan semua
+    if (!search) return true
 
     const lowerSearch = search.toLowerCase()
 
@@ -104,10 +97,10 @@ export default function Locations() {
     setIsEdit(true)
     setIdLocation(item.id)
     setName(item.name)
-    setCategoryId(item.category_id)
+    setCategoryId(item.category_id.toString())
     setDescription(item.description)
     setAddress(item.address)
-    setPreviewImage(item.image)
+    setPreviewImage(getImageUrl(item.image))
     setImage(null)
     setValidation({})
     setShowModal(true)
@@ -115,7 +108,9 @@ export default function Locations() {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    setValidation({}) // Reset error validasi sebelumnya
+    setValidation({})
+    setIsLoading(true)
+    setMessage(null)
 
     const formData = new FormData()
     formData.append('name', name)
@@ -123,33 +118,38 @@ export default function Locations() {
     formData.append('description', description)
     formData.append('address', address)
 
-    // Hanya kirim image jika ada file baru yang dipilih
     if (image instanceof File) {
       formData.append('image', image)
     }
 
-    // Method Spoofing untuk update
     if (isEdit) {
       formData.append('_method', 'PUT')
     }
 
     try {
       const url = isEdit ? `/location/${idLocation}` : '/location'
-      await Api.post(url, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
+
+      const response = await Api.post(url, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+          Accept: 'application/json',
+        },
       })
 
-      setMessage({ type: 'success', text: 'Data berhasil disimpan!' })
-      setShowModal(false)
-      fetchData()
+      if (response.data.success) {
+        setMessage({ type: 'success', text: 'Data lokasi berhasil diperbarui!' })
+        setShowModal(false)
+        fetchData()
+      }
     } catch (error) {
       if (error.response && error.response.status === 422) {
         setValidation(error.response.data.errors)
-        // Log ini untuk melihat field mana yang sebenarnya error menurut Laravel
-        console.log('Detail Error Validasi:', error.response.data.errors)
       } else {
-        setMessage({ type: 'error', text: 'Terjadi kesalahan pada server.' })
+        console.error('Error Detail:', error.response?.data)
+        setMessage({ type: 'error', text: 'Terjadi kesalahan pada server saat mengupdate data.' })
       }
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -164,7 +164,19 @@ export default function Locations() {
     }
   }
 
-  console.log(locations)
+  const getImageUrl = (imagePath) => {
+    if (!imagePath) return 'https://placehold.co/600x400?text=No+Image'
+
+    if (imagePath.includes('file://') || imagePath.includes('AppData') || imagePath.includes(':/')) {
+      return 'https://placehold.co/600x400?text=Path+Lokal+Error'
+    }
+
+    if (imagePath.startsWith('http')) {
+      return imagePath
+    }
+
+    return `http://localhost:8000/storage/${imagePath}`
+  }
 
   return (
     <div className="p-4">
@@ -227,12 +239,12 @@ export default function Locations() {
                 <tr key={item.id} className="border-b">
                   <td className="p-3">
                     <img
-                      src={item.image}
+                      src={getImageUrl(item.image)}
                       alt={item.name}
-                      className="w-20 h-12 object-cover rounded"
+                      className="w-20 h-12 object-cover rounded shadow-sm"
                       onError={(e) => {
                         e.target.onerror = null
-                        e.target.src = 'https://placehold.co/400?text=No+Image'
+                        e.target.src = 'https://placehold.co/600x400?text=Error+Load'
                       }}
                     />
                   </td>
@@ -328,8 +340,12 @@ export default function Locations() {
                 >
                   Batal
                 </button>
-                <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded">
-                  Simpan
+                <button
+                  type="submit"
+                  disabled={isLoading}
+                  className={`bg-blue-600 text-white px-4 py-2 rounded ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  {isLoading ? 'Sedang Menyimpan...' : 'Simpan'}
                 </button>
               </div>
             </form>
